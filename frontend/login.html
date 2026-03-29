@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+    <div class="login-container glass-card fade-in">
+        <h2>Welcome Back</h2>
+        <p>Login to manage your Termux Server</p>
+        <form id="login-form">
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Username" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Password" required>
+            </div>
+            <button type="submit" class="btn primary-btn full-width">Sign In</button>
+        </form>
+        <div id="login-error" class="error-msg" style="display:none; color:#ff4d4f; margin-top:10px;">Incorrect credentials.</div>
+    </div>
+    
+    <script>
+        document.getElementById("login-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new URLSearchParams();
+            formData.append('username', document.getElementById("username").value);
+            formData.append('password', document.getElementById("password").value);
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                    body: formData
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem("access_token", data.access_token);
+                    window.location.href = "/";
+                } else {
+                    document.getElementById("login-error").style.display = "block";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

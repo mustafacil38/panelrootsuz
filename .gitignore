@@ -1,0 +1,26 @@
+# Her şeyi yoksay (Ignore everything)
+/*
+
+# Ama su dosya ve klasörleri DISARI BIRAK (But ALLOW these)
+!/backend/
+!/frontend/
+!/README.md
+!/requirements.txt
+!/setup.sh
+!/yukle.sh
+!/.gitignore
+
+# Klasörlerin içindekileri de tarayabilmesi için
+!/backend/**
+!/frontend/**
+
+# Yine de bu klasörlerin içindeki gereksizleri yoksay
+**/__pycache__/
+**/*.pyc
+**/data/*.db
+**/data/*.sqlite
+**/*.log
+panel_error.log
+panel_debug.log
+data/
+backend/data/

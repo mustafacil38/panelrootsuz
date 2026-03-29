@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mustafa Android Server Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+</head>
+<body>
+    <div id="app" class="app-container">
+        
+        <!-- SIDEBAR (Left 1/3) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-server"></i> <span data-i18n="panel_title">Server Panel</span></h2>
+            </div>
+            
+            <div class="system-status glass-card">
+                <h3 data-i18n="system_status">System Status</h3>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <canvas id="cpuChart"></canvas>
+                        <div class="chart-center-text" id="cpu-percent">0%</div>
+                        <span class="label">CPU</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="ramChart"></canvas>
+                        <div class="chart-center-text" id="ram-percent">0%</div>
+                        <span class="label">RAM</span>
+                    </div>
+                    <div class="gauge-container">
+                        <canvas id="diskChart"></canvas>
+                        <div class="chart-center-text" id="disk-percent">0%</div>
+                        <span class="label" data-i18n="disk">Disk</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-nav">
+                <button class="nav-btn active" onclick="switchTab('dashboard')"><i class="fa-solid fa-house"></i> <span data-i18n="nav_dashboard">Dashboard</span></button>
+                <button class="nav-btn" onclick="openFileManager()"><i class="fa-regular fa-folder-open"></i> <span data-i18n="nav_files">File Browser</span></button>
+                <button class="nav-btn" onclick="switchTab('settings')"><i class="fa-solid fa-sliders"></i> <span data-i18n="nav_settings">Settings</span></button>
+            </div>
+
+            <div class="system-summary glass-card">
+                <h3 data-i18n="system_summary">System Summary</h3>
+                <ul id="sys-info-list">
+                    <li><strong><i class="fa-solid fa-desktop"></i> <span data-i18n="hostname">Hostname</span>:</strong> <span id="info-hostname">...</span></li>
+                    <li><strong><i class="fa-solid fa-network-wired"></i> IP:</strong> <span id="info-ip">127.0.0.1</span></li>
+                    <li><strong><i class="fa-brands fa-linux"></i> <span data-i18n="kernel">Kernel</span>:</strong> <span id="info-kernel">...</span></li>
+                    <li><strong><i class="fa-solid fa-microchip"></i> CPU Model:</strong> <br><span id="info-cpu-model" style="font-size:0.85em; color:var(--text-secondary);">...</span></li>
+                    <li><strong><i class="fa-solid fa-memory"></i> Toplam RAM:</strong> <span id="info-ram-total">...</span></li>
+                    <li><strong><i class="fa-solid fa-hard-drive"></i> Toplam Hafıza:</strong> <span id="info-disk-total">...</span></li>
+                    <li><strong><i class="fa-solid fa-clock"></i> Uptime:</strong> <span id="info-uptime">...</span></li>
+                    <li><strong><i class="fa-solid fa-chart-line"></i> Ağ Bağlantısı:</strong> <br><span id="info-net" style="font-size:0.85em; color:var(--text-secondary);">...</span></li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA (Right 2/3) -->
+        <main class="main-content">
+            <header class="topbar glass-card">
+                <div class="actions">
+                    <button class="btn icon-btn" id="terminal-btn" title="Open Terminal"><i class="fa-solid fa-terminal"></i> Terminal</button>
+                </div>
+                <div class="toggles">
+                    <button class="btn icon-btn" id="lang-toggle" onclick="toggleLang()">EN / TR</button>
+                    <button class="btn icon-btn" id="theme-toggle" onclick="toggleTheme()"><i class="fa-solid fa-moon"></i></button>
+                    <button class="btn icon-btn" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Dashboard Tab (Now containing Services) -->
+                <div id="tab-dashboard" class="tab-pane active fade-in">
+                    <div class="flex-header">
+                        <h2 data-i18n="service_manager">Service Manager</h2>
+                        <button class="btn primary-btn" onclick="openAddServiceModal()"><i class="fa-solid fa-plus"></i> <span data-i18n="add_service">Add Service</span></button>
+                    </div>
+                    <div class="services-list" id="services-container" style="margin-top: 15px;">
+                        <!-- Services populated here -->
+                    </div>
+                </div>
+
+
+
+                <!-- Settings Tab -->
+                <div id="tab-settings" class="tab-pane fade-in">
+                    <h2 data-i18n="settings">Settings</h2>
+                    <div class="glass-card settings-form">
+                        <h3>Cloudflare Tunnel</h3>
+                        <label>Token:</label>
+                        <input type="password" id="cf-token" placeholder="eyJh..." class="input-field">
+                        <button class="btn primary-btn" style="margin-top: 10px;">Save Token</button>
+                    </div>
+
+                    <div class="glass-card settings-form" style="margin-top: 20px;">
+                        <h3 data-i18n="admin_profile">Admin Profile</h3>
+                        <label>New Username:</label>
+                        <input type="text" id="update-username" placeholder="Leave blank to keep current" class="input-field" style="margin-bottom:10px;">
+                        <label>New Password:</label>
+                        <input type="password" id="update-password" placeholder="Leave blank to keep current" class="input-field">
+                        <button class="btn primary-btn" onclick="updateProfile()" style="margin-top: 15px;"><i class="fa-solid fa-user-shield"></i> Update Profile</button>
+                    </div>
+                    
+                    <div class="glass-card settings-form" style="margin-top: 20px;">
+                        <h3 data-i18n="diagnostics">System Diagnostics</h3>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:10px;">If CPU or metrics are stuck at 0, please run diagnostics to find the issue.</p>
+                        <button class="btn" style="background:var(--accent-color); color:white" onclick="showDiagnostics()"><i class="fa-solid fa-microscope"></i> Run Diagnostics</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals (Add Service, Logs) -->
+    <div id="addServiceModal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('addServiceModal')">&times;</span>
+            <h3 data-i18n="add_service">Add Service</h3>
+            <div class="settings-form">
+                <label>Name:</label>
+                <input type="text" id="svc-name" placeholder="e.g. File Browser" class="input-field" style="margin-bottom:10px;">
+                <label>Command:</label>
+                <input type="text" id="svc-command" placeholder="e.g. filebrowser -p 8083" class="input-field" style="margin-bottom:10px;">
+                <label>Port (Optional):</label>
+                <input type="text" id="svc-port" placeholder="e.g. 8083" class="input-field" style="margin-bottom:10px;">
+                <label>Log File (Optional):</label>
+                <input type="text" id="svc-logfile" placeholder="e.g. /data/data/com.termux/files/home/fb.log" class="input-field" style="margin-bottom:10px;">
+                <label>Config File (Optional):</label>
+                <input type="text" id="svc-configfile" placeholder="e.g. /etc/nginx/nginx.conf" class="input-field" style="margin-bottom:15px;">
+                
+                <button class="btn primary-btn" onclick="saveServiceModal()"><i class="fa-solid fa-save"></i> Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="logModal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('logModal')">&times;</span>
+            <h3 data-i18n="service_logs">Service Logs</h3>
+            <pre id="log-content" class="terminal-text">Loading...</pre>
+        </div>
+    </div>
+
+    <div id="configModal" class="modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="closeModal('configModal')">&times;</span>
+            <h3 id="config-title">Edit Configuration</h3>
+            <textarea id="config-content" class="input-field" style="height: 400px; font-family: monospace; font-size: 14px; white-space: pre; overflow: auto;"></textarea>
+            <button class="btn primary-btn" id="save-config-btn" style="margin-top: 15px;"><i class="fa-solid fa-save"></i> Save Configuration</button>
+        </div>
+    </div>
+    <div id="terminalModal" class="modal">
+        <div class="modal-content glass-card" style="width: 80%; max-width: 900px; padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
+            <div style="background: rgba(255,255,255,0.05); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin:0"><i class="fa-solid fa-terminal"></i> <span id="terminal-title">Installation Terminal</span></h3>
+                <span class="close-btn" onclick="closeTerminalModal()" style="position:static; padding:0; line-height: 1;">&times;</span>
+            </div>
+            <div id="terminal-container" style="height: 450px; background: #000; padding: 5px;"></div>
+            <iframe id="terminal-iframe" src="" style="width:100%; height:450px; border:none; display:none;"></iframe>
+        </div>
+    </div>
+    
+    <div id="diagModal" class="modal">
+        <div class="modal-content glass-card" style="width: 80%; max-width: 900px;">
+            <span class="close-btn" onclick="closeModal('diagModal')">&times;</span>
+            <h3 id="diag-title">// System Diagnostics</h3>
+            <pre id="diag-content" class="terminal-text" style="background:#111; padding:15px; border-radius:8px; height: 500px; overflow: auto; color: #00ff00; font-size: 13px; border:1px solid #333;">Loading diagnostics...</pre>
+            <button class="btn primary-btn" style="margin-top:15px" onclick="copyDiagnostics()"><i class="fa-solid fa-copy"></i> Copy to Clipboard</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
