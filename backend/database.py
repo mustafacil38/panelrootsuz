@@ -79,11 +79,16 @@ def seed_core_services(db):
         }
     ]
     
-    for s_data in core_services:
-        if not db.query(Service).filter(Service.name == s_data["name"]).first():
-            new_svc = Service(**s_data)
-            db.add(new_svc)
-    db.commit()
+    try:
+        for s_data in core_services:
+            if not db.query(Service).filter(Service.name == s_data["name"]).first():
+                new_svc = Service(**s_data)
+                db.add(new_svc)
+        db.commit()
+    except Exception as e:
+        import logging
+        logging.error(f"Seeding error: {e}")
+        db.rollback()
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -93,8 +98,13 @@ def init_db():
         with engine.begin() as conn:
             from sqlalchemy import text
             conn.execute(text("ALTER TABLE services ADD COLUMN config_file VARCHAR"))
-    except Exception:
-        pass
+    except Exception: pass
+    
+    try:
+        with engine.begin() as conn:
+            from sqlalchemy import text
+            conn.execute(text("ALTER TABLE services ADD COLUMN type VARCHAR DEFAULT 'system'"))
+    except Exception: pass
         
     # Create default user and seed services
     db = SessionLocal()
