@@ -59,7 +59,7 @@ def _get_cpu_usage_top():
                         return round(100.0 - idle_val, 1)
     except Exception as e:
         logging.error(f"Top CPU error: {e}")
-    return None, None
+    return None
 
 def _get_cpu_times():
     """Manually parse /proc/stat to get total and idle CPU times."""
@@ -82,21 +82,26 @@ def _bg_metric_updater():
         try:
             # CPU Metrics logic
             curr_total, curr_idle = _get_cpu_times()
+            
             if curr_total is not None and prev_total is not None:
                 diff_total = curr_total - prev_total
                 diff_idle = curr_idle - prev_idle
+                
                 if diff_total > 1: 
                     usage = 100 * (1.0 - (diff_idle / diff_total))
                     _metrics["cpu"] = round(max(0.0, min(100.0, usage)), 1)
                     prev_total, prev_idle = curr_total, curr_idle
                 else:
-                    top_usage = _get_cpu_usage_top()
-                    if top_usage is not None:
-                        _metrics["cpu"] = top_usage
+                    top_val = _get_cpu_usage_top()
+                    if top_val is not None:
+                        _metrics["cpu"] = top_val
             else:
-                top_usage = _get_cpu_usage_top()
-                if top_usage is not None:
-                    _metrics["cpu"] = top_usage
+                top_val = _get_cpu_usage_top()
+                if top_val is not None:
+                    _metrics["cpu"] = top_val
+                # Try to re-initialize prev values if they were None
+                if prev_total is None:
+                    prev_total, prev_idle = curr_total, curr_idle
 
             # Network IO logic
             curr_sent, curr_recv = get_net_usage_manual()
