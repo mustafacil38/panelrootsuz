@@ -127,20 +127,20 @@ async function fetchSystemStatus() {
             <i class="fa-solid fa-arrow-down"></i> ${downSpeed} KB/s
         `;
 
-        // Update charts
-        const cpuUsage = data.cpu.percent || 0;
+        // Update charts with safer numeric handling
+        const cpuUsage = Math.round(data.cpu.percent || 0);
         charts.cpu.data.datasets[0].data = [cpuUsage, 100 - cpuUsage];
-        charts.cpu.update();
+        charts.cpu.update('none'); // Update without animation for snappier feel
         document.getElementById('cpu-percent').innerText = `${cpuUsage}%`;
 
-        const ramUsage = data.ram.percent || 0;
+        const ramUsage = Math.round(data.ram.percent || 0);
         charts.ram.data.datasets[0].data = [ramUsage, 100 - ramUsage];
-        charts.ram.update();
+        charts.ram.update('none');
         document.getElementById('ram-percent').innerText = `${ramUsage}%`;
 
-        const diskUsage = data.disk.percent || 0;
+        const diskUsage = Math.round(data.disk.percent || 0);
         charts.disk.data.datasets[0].data = [diskUsage, 100 - diskUsage];
-        charts.disk.update();
+        charts.disk.update('none');
         document.getElementById('disk-percent').innerText = `${diskUsage}%`;
         
     } catch (e) {
