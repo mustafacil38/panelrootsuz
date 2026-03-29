@@ -148,15 +148,19 @@ async function fetchSystemStatus() {
     }
 }
 
+// global vars for config editor
+let currentEditingSvcId = null;
+let currentEditingPath = null;
+
 // Services Management
 async function loadServices() {
     const container = document.getElementById('services-container');
-    container.innerHTML = '<p>Loading services...</p>';
+    container.innerHTML = '<div class="loading-spinner"></div><p>Loading services...</p>';
     
     try {
         const services = await api.get('/services/');
         if(services.length === 0) {
-            container.innerHTML = '<p>No services configured.</p>';
+            container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-cloud-moon fa-3x"></i><p>No services configured yet.</p></div>';
             return;
         }
         
@@ -165,45 +169,117 @@ async function loadServices() {
             const statusColor = svc.status === 'running' ? '#10b981' : '#ef4444';
             const isTr = (localStorage.getItem('panelLang') || 'en') === 'tr';
             const statusText = svc.status === 'running' ? (isTr ? 'ÇALIŞIYOR' : 'RUNNING') : (isTr ? 'DURDURULDU' : 'STOPPED');
+            
             let html = `
-                <div class="service-item">
+                <div class="service-item glass-card">
                     <div class="flex-header">
-                        <h3>${svc.name}</h3>
-                        <span style="color: ${statusColor}; font-weight:bold;">● ${statusText}</span>
+                        <h3><i class="fa-solid fa-cube"></i> ${svc.name}</h3>
+                        <span class="status-badge" style="background: ${statusColor}22; color: ${statusColor};">● ${statusText}</span>
                     </div>
-                    <p style="font-size:0.85rem; color:var(--text-secondary)">Command: <code>${svc.command}</code></p>
+                    <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 20px;">
+                        <i class="fa-solid fa-terminal" style="font-size: 0.7rem"></i> ${svc.command}
+                    </p>
                     <div class="item-actions">
             `;
             
             if(svc.status === 'stopped') {
                 html += `<button class="btn primary-btn" onclick="startService(${svc.id})"><i class="fa-solid fa-play"></i> Start</button>`;
             } else {
-                html += `<button class="btn" style="background:#ef4444" onclick="stopService(${svc.id})"><i class="fa-solid fa-stop"></i> Stop</button>`;
+                html += `<button class="btn" style="background:#ef4444; color:white" onclick="stopService(${svc.id})"><i class="fa-solid fa-stop"></i> Stop</button>`;
+                html += `<button class="btn" style="background:#eab308; color:#1e293b" onclick="restartService(${svc.id})"><i class="fa-solid fa-rotate"></i> Restart</button>`;
             }
             
-            html += `<button class="btn icon-btn" onclick="viewLogs(${svc.id})" title="View Logs"><i class="fa-solid fa-file-lines"></i></button>`;
+            html += `<button class="btn icon-btn" onclick="viewLogs(${svc.id})" title="Logs"><i class="fa-solid fa-file-lines"></i></button>`;
             
             if(svc.config_file) {
-                const configs = svc.config_file.split(',');
-                configs.forEach(cfg => {
-                    const cleanCfg = cfg.trim();
-                    const cfgName = cleanCfg.split('/').pop() || 'Config';
-                    html += `<button class="btn icon-btn" onclick="openConfigEditor(${svc.id}, '${cleanCfg}')" title="Edit Config: ${cfgName}"><i class="fa-solid fa-pen-to-square"></i></button>`;
-                });
+                // Pass full config string to handled by the new multi-file editor
+                html += `<button class="btn icon-btn" onclick="openConfigEditor(${svc.id}, '${svc.config_file}')" title="Config"><i class="fa-solid fa-gears"></i></button>`;
             }
             
             if(svc.port) {
                 const url = `http://${window.location.hostname}:${svc.port}`;
-                html += `<a href="${url}" target="_blank" class="btn icon-btn" title="Open Dashboard"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+                html += `<a href="${url}" target="_blank" class="btn icon-btn" style="margin-right:0" title="Open"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
             }
             
-            html += `<button class="btn icon-btn" style="color:#ef4444; margin-left:auto;" onclick="deleteService(${svc.id})"><i class="fa-solid fa-trash"></i></button>
+            html += `<button class="btn icon-btn" style="color:#ef4444; margin-left:auto; background:transparent" onclick="deleteService(${svc.id})"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 </div>`;
             container.innerHTML += html;
         });
     } catch(e) {
-        container.innerHTML = '<p style="color:red">Failed to load services.</p>';
+        container.innerHTML = '<p style="color:red; padding:20px; text-align:center;">Failed to load services. Check backend logs.</p>';
+        console.error(e);
+    }
+}
+
+// Config Editor Modal
+async function openConfigEditor(id, configFiles) {
+    currentEditingSvcId = id;
+    const files = configFiles.split(',').map(f => f.trim()).filter(f => f);
+    
+    const selector = document.getElementById('config-file-selector');
+    selector.innerHTML = '';
+    
+    if(files.length > 1) {
+        selector.style.display = 'block';
+        files.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f.split('/').pop();
+            selector.appendChild(opt);
+        });
+    } else {
+        selector.style.display = 'none';
+        const opt = document.createElement('option');
+        opt.value = files[0];
+        opt.textContent = files[0];
+        selector.appendChild(opt);
+    }
+
+    document.getElementById('configModal').style.display = 'block';
+    loadConfigFile(id, files[0]);
+    
+    // Setup save buttons
+    document.getElementById('save-config-btn').onclick = () => saveConfigFile(id, selector.value, false);
+    document.getElementById('save-apply-config-btn').onclick = () => saveConfigFile(id, selector.value, true);
+}
+
+async function loadConfigFile(id, path) {
+    const editor = document.getElementById('config-content');
+    editor.value = "Loading configuration...";
+    currentEditingPath = path;
+    
+    try {
+        const res = await api.get(`/services/${id}/config?file=${encodeURIComponent(path)}`);
+        editor.value = res.content || '';
+    } catch(e) {
+        editor.value = "Error loading config: " + (e.response?.data?.detail || e.message);
+    }
+}
+
+async function saveConfigFile(id, path, restart = false) {
+    const content = document.getElementById('config-content').value;
+    try {
+        await api.post(`/services/${id}/config`, { content: content, file: path });
+        if(restart) {
+            await restartService(id);
+        } else {
+            alert("Configuration saved successfully.");
+        }
+        closeModal('configModal');
+    } catch(e) {
+        alert("Failed to save: " + (e.response?.data?.detail || e.message));
+    }
+}
+
+async function restartService(id) {
+    try {
+        const res = await api.post(`/services/${id}/restart`);
+        loadServices();
+        return res;
+    } catch(e) {
+        alert("Restart failed: " + (e.response?.data?.detail || e.message));
+        throw e;
     }
 }
 

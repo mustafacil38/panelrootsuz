@@ -42,6 +42,49 @@ class InstalledApp(Base):
     installed_at = Column(DateTime, default=datetime.datetime.utcnow)
     status = Column(String, default="installed")
 
+def seed_core_services(db):
+    """Seed standard server services if they don't exist."""
+    core_services = [
+        {
+            "name": "Nginx",
+            "command": "nginx",
+            "port": 80,
+            "type": "system",
+            "config_file": "/etc/nginx/nginx.conf,/etc/nginx/sites-available/default",
+            "log_file": "/var/log/nginx/error.log"
+        },
+        {
+            "name": "PHP 8.4-FPM",
+            "command": "php-fpm8.4",
+            "port": 9000,
+            "type": "system",
+            "config_file": "/etc/php/8.4/fpm/php.ini,/etc/php/8.4/fpm/pool.d/www.conf",
+            "log_file": "/var/log/php8.4-fpm.log"
+        },
+        {
+            "name": "File Browser",
+            "command": "filebrowser",
+            "port": 8080,
+            "type": "system",
+            "config_file": "/root/.filebrowser.json",
+            "log_file": "/root/filebrowser.log"
+        },
+        {
+            "name": "Terminal (ttyd)",
+            "command": "ttyd -p 7681 bash",
+            "port": 7681,
+            "type": "system",
+            "config_file": "",
+            "log_file": ""
+        }
+    ]
+    
+    for s_data in core_services:
+        if not db.query(Service).filter(Service.name == s_data["name"]).first():
+            new_svc = Service(**s_data)
+            db.add(new_svc)
+    db.commit()
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     
@@ -51,17 +94,21 @@ def init_db():
             from sqlalchemy import text
             conn.execute(text("ALTER TABLE services ADD COLUMN config_file VARCHAR"))
     except Exception:
-        pass # Ignore if column already exists
+        pass
         
-    # Create default user if not exists
+    # Create default user and seed services
     db = SessionLocal()
-    if not db.query(User).filter(User.username == "admin").first():
-        import bcrypt
-        hashed_pw = bcrypt.hashpw("admin".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        default_user = User(username="admin", hashed_password=hashed_pw)
-        db.add(default_user)
-        db.commit()
-    db.close()
+    try:
+        if not db.query(User).filter(User.username == "admin").first():
+            import bcrypt
+            hashed_pw = bcrypt.hashpw("admin".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            default_user = User(username="admin", hashed_password=hashed_pw)
+            db.add(default_user)
+            db.commit()
+            
+        seed_core_services(db)
+    finally:
+        db.close()
 
 def get_db():
     db = SessionLocal()

@@ -190,7 +190,10 @@ def auto_discover_services(db: Session):
 
 @router.get("/", response_model=list[ServiceOut])
 def list_services(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    auto_discover_services(db)
+    # Auto-discovery is now disabled per user request.
+    # To clean up previous discoveries once:
+    db.query(Service).filter(Service.type == "system").delete()
+    db.commit()
     
     services = db.query(Service).all()
     results = []
@@ -297,9 +300,38 @@ def save_service_config(service_id: int, data: ConfigData, db: Session = Depends
         raise HTTPException(status_code=403, detail="File path not allowed")
         
     try:
+        # Before saving, back up the original file if not exists
+        if os.path.exists(target_file) and not os.path.exists(target_file + ".bak"):
+            shutil.copy2(target_file, target_file + ".bak")
+
         with open(target_file, "w", encoding="utf-8") as f:
             f.write(data.content)
         return {"message": "Configuration saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{service_id}/restart")
+def restart_service(service_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    svc = db.query(Service).filter(Service.id == service_id).first()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    try:
+        # Special handling for Nginx reload to avoid downtime
+        if "nginx" in svc.command.lower():
+             try:
+                 subprocess.run(["nginx", "-s", "reload"], check=True)
+                 return {"message": "Nginx reloaded successfully"}
+             except: pass # Fallback to hard restart
+
+        # Hard restart: stop then start
+        stop_service(service_id, db, current_user)
+        # Give it a tiny moment to actually die
+        import time
+        time.sleep(0.5)
+        start_service(service_id, db, current_user)
+        
+        return {"message": "Service restarted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

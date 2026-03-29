@@ -152,9 +152,15 @@
     <div id="configModal" class="modal">
         <div class="modal-content glass-card">
             <span class="close-btn" onclick="closeModal('configModal')">&times;</span>
-            <h3 id="config-title">Edit Configuration</h3>
-            <textarea id="config-content" class="input-field" style="height: 400px; font-family: monospace; font-size: 14px; white-space: pre; overflow: auto;"></textarea>
-            <button class="btn primary-btn" id="save-config-btn" style="margin-top: 15px;"><i class="fa-solid fa-save"></i> Save Configuration</button>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <h3 id="config-title" style="margin:0">Edit Configuration</h3>
+                <select id="config-file-selector" class="input-field" style="max-width:300px; margin:0;" onchange="loadConfigFile(currentEditingSvcId, this.value)"></select>
+            </div>
+            <textarea id="config-content" class="input-field" style="height: 480px; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; color: #d1d5db; background: #0f172a; white-space: pre; overflow: auto; border: 1px solid #334155;"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn primary-btn" id="save-config-btn"><i class="fa-solid fa-save"></i> Save Configuration</button>
+                <button class="btn" style="background: #eab308; color: #1e293b;" id="save-apply-config-btn"><i class="fa-solid fa-bolt"></i> Save & Restart</button>
+            </div>
         </div>
     </div>
     <div id="terminalModal" class="modal">
